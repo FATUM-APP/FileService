@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: FileService
+  servlet:
+    multipart:
+      # Hard limit of the servlet container. Each route also enforces its own, smaller limit.
+      max-file-size: ${STORAGE_MAX_FILE_SIZE:15MB}
+      max-request-size: ${STORAGE_MAX_REQUEST_SIZE:15MB}
+server:
+  port: ${PORT:8081}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+fatum:
+  storage:
+    # Shared secret expected in the X-Storage-Key header. Blank disables the check (local development).
+    internal-secret: ${STORAGE_INTERNAL_SECRET:}
+    # Lifetime of the pre-signed download URLs unless a route overrides it.
+    presign-ttl: ${STORAGE_PRESIGN_TTL:15m}
+    region: ${AWS_REGION:us-east-1}
+    # Route used when a caller does not send one. Leave empty to force every caller to be explicit.
+    default-route: ${STORAGE_DEFAULT_ROUTE:}
+    routes:
+      # ---------------------------------------------------------------------------------------
+      # A route is "microservice:purpose". Adding a new purpose is a configuration change: the
+      # bucket comes from an environment variable, so the same image runs in every environment.
+      # ---------------------------------------------------------------------------------------
+      "user-service:profile-image":
+        bucket: ${S3_USER_PROFILE_IMAGES_BUCKET:}
+        prefix: profile-images
+        allowed-content-types: [image/jpeg, image/png, image/webp]
+        max-size: ${S3_USER_PROFILE_IMAGES_MAX_SIZE:5MB}
+      "user-service:liveness":
+        # Liveness frames are short lived evidence; they can share the profile bucket or use their own.
+        bucket: ${S3_USER_LIVENESS_BUCKET:${S3_USER_PROFILE_IMAGES_BUCKET:}}
+        prefix: liveness
+        allowed-content-types: [image/jpeg, image/png, image/webp]
+        max-size: ${S3_USER_LIVENESS_MAX_SIZE:5MB}
+      "user-service:document":
+        bucket: ${S3_USER_DOCUMENTS_BUCKET:}
+        prefix: documents
+        # Identity documents are photographs now, so only images are accepted.
+        allowed-content-types: [image/jpeg, image/png, image/webp]
+        max-size: ${S3_USER_DOCUMENTS_MAX_SIZE:10MB}
+      # Examples of other microservices already anticipated by this configuration.
+      "ratings-service:photo":
+        bucket: ${S3_RATINGS_PHOTOS_BUCKET:}
+        prefix: photos
+        allowed-content-types: [image/*]
+        max-size: 5MB
+      "catalog-service:photo":
+        bucket: ${S3_CATALOG_PHOTOS_BUCKET:}
+        prefix: photos
+        allowed-content-types: [image/*]
+        max-size: 5MB
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
