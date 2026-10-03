@@ -74,7 +74,8 @@ fatum:
       "user-service:document":
         bucket: ${S3_USER_DOCUMENTS_BUCKET:}
         prefix: documents
-        allowed-content-types: [image/jpeg, image/png, image/webp]
+        # El servicio de usuarios une las dos caras en un único PDF antes de subirlo.
+        allowed-content-types: [image/jpeg, image/png, image/webp, application/pdf]
         max-size: ${S3_USER_DOCUMENTS_MAX_SIZE:10MB}
 ```
 

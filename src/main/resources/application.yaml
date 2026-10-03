@@ -41,8 +41,9 @@ fatum:
       "user-service:document":
         bucket: ${S3_USER_DOCUMENTS_BUCKET:}
         prefix: documents
-        # Identity documents are photographs now, so only images are accepted.
-        allowed-content-types: [image/jpeg, image/png, image/webp]
+        # The user service merges both sides of a document into a single PDF, so this route accepts
+        # that PDF as well as a document sent directly as an image.
+        allowed-content-types: [image/jpeg, image/png, image/webp, application/pdf]
         max-size: ${S3_USER_DOCUMENTS_MAX_SIZE:10MB}
       # Examples of other microservices already anticipated by this configuration.
       "ratings-service:photo":
