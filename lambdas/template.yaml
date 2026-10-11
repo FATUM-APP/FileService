@@ -27,6 +27,7 @@ Globals:
       - x86_64
     Layers:
       - !Ref SharedLayer
+    Role: arn:aws:iam::902353451847:role/bucket-admin
     Environment:
       Variables:
         S3_USER_PROFILE_IMAGES_BUCKET: !Ref S3UserProfileImagesBucket
@@ -35,22 +36,6 @@ Globals:
         PRESIGN_TTL_SECONDS: !Ref PresignTtlSeconds
 
 Resources:
-  FileServiceApi:
-    Type: AWS::Serverless::HttpApi
-    Properties:
-      StageName: prod
-      CorsConfiguration:
-        AllowOrigins:
-          - "*"
-        AllowHeaders:
-          - Content-Type
-          - X-Storage-Key
-        AllowMethods:
-          - GET
-          - POST
-          - DELETE
-          - OPTIONS
-
   SharedLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
@@ -66,18 +51,6 @@ Resources:
       FunctionName: fatum-file-upload
       CodeUri: upload/
       Handler: handler.handler
-      Events:
-        Upload:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref FileServiceApi
-            Path: /files
-            Method: POST
-      Policies:
-        - S3CrudPolicy:
-            BucketName: !Ref S3UserProfileImagesBucket
-        - S3CrudPolicy:
-            BucketName: !Ref S3UserDocumentsBucket
 
   DownloadFunction:
     Type: AWS::Serverless::Function
@@ -85,18 +58,6 @@ Resources:
       FunctionName: fatum-file-download
       CodeUri: download/
       Handler: handler.handler
-      Events:
-        Download:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref FileServiceApi
-            Path: /files/url
-            Method: GET
-      Policies:
-        - S3ReadPolicy:
-            BucketName: !Ref S3UserProfileImagesBucket
-        - S3ReadPolicy:
-            BucketName: !Ref S3UserDocumentsBucket
 
   DeleteFunction:
     Type: AWS::Serverless::Function
@@ -104,26 +65,8 @@ Resources:
       FunctionName: fatum-file-delete
       CodeUri: delete/
       Handler: handler.handler
-      Events:
-        Delete:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref FileServiceApi
-            Path: /files
-            Method: DELETE
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - s3:DeleteObject
-              Resource:
-                - !Sub "arn:aws:s3:::${S3UserProfileImagesBucket}/*"
-                - !Sub "arn:aws:s3:::${S3UserDocumentsBucket}/*"
 
 Outputs:
-  ApiUrl:
-    Description: API Gateway endpoint URL
-    Value: !Sub "https://${FileServiceApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
   UploadFunctionArn:
     Value: !GetAtt UploadFunction.Arn
   DownloadFunctionArn:
