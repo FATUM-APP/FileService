@@ -1,0 +1,132 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Fatum FileService - S3 file operations via Lambda
+
+Parameters:
+  S3UserProfileImagesBucket:
+    Type: String
+    Description: S3 bucket for user profile images
+  S3UserDocumentsBucket:
+    Type: String
+    Description: S3 bucket for user documents
+  StorageInternalSecret:
+    Type: String
+    Default: ""
+    Description: Shared secret for X-Storage-Key auth (blank disables)
+  PresignTtlSeconds:
+    Type: Number
+    Default: 900
+    Description: Presigned URL TTL in seconds
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 256
+    Architectures:
+      - x86_64
+    Layers:
+      - !Ref SharedLayer
+    Environment:
+      Variables:
+        S3_USER_PROFILE_IMAGES_BUCKET: !Ref S3UserProfileImagesBucket
+        S3_USER_DOCUMENTS_BUCKET: !Ref S3UserDocumentsBucket
+        STORAGE_INTERNAL_SECRET: !Ref StorageInternalSecret
+        PRESIGN_TTL_SECONDS: !Ref PresignTtlSeconds
+
+Resources:
+  FileServiceApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: prod
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowHeaders:
+          - Content-Type
+          - X-Storage-Key
+        AllowMethods:
+          - GET
+          - POST
+          - DELETE
+          - OPTIONS
+
+  SharedLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: file-service-shared
+      Description: Shared config and response utilities
+      ContentUri: shared/
+      CompatibleRuntimes:
+        - python3.12
+
+  UploadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: fatum-file-upload
+      CodeUri: upload/
+      Handler: handler.handler
+      Events:
+        Upload:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref FileServiceApi
+            Path: /files
+            Method: POST
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3UserProfileImagesBucket
+        - S3CrudPolicy:
+            BucketName: !Ref S3UserDocumentsBucket
+
+  DownloadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: fatum-file-download
+      CodeUri: download/
+      Handler: handler.handler
+      Events:
+        Download:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref FileServiceApi
+            Path: /files/url
+            Method: GET
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref S3UserProfileImagesBucket
+        - S3ReadPolicy:
+            BucketName: !Ref S3UserDocumentsBucket
+
+  DeleteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: fatum-file-delete
+      CodeUri: delete/
+      Handler: handler.handler
+      Events:
+        Delete:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref FileServiceApi
+            Path: /files
+            Method: DELETE
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:DeleteObject
+              Resource:
+                - !Sub "arn:aws:s3:::${S3UserProfileImagesBucket}/*"
+                - !Sub "arn:aws:s3:::${S3UserDocumentsBucket}/*"
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${FileServiceApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
+  UploadFunctionArn:
+    Value: !GetAtt UploadFunction.Arn
+  DownloadFunctionArn:
+    Value: !GetAtt DownloadFunction.Arn
+  DeleteFunctionArn:
+    Value: !GetAtt DeleteFunction.Arn
