@@ -18,6 +18,20 @@ ROUTES = {
         ],
         "max_size": 10 * 1024 * 1024,
     },
+
+    # --- CatalogService ---
+    "catalog-service:photo": {
+        "bucket_env": "S3_CATALOG_PHOTOS_BUCKET",
+        "prefix": "catalog-photos",
+        "allowed_content_types": ["image/jpeg", "image/png", "image/webp"],
+        "max_size": 3 * 1024 * 1024,
+    },
+    "catalog-service:category-logo": {
+        "bucket_env": "S3_CATALOG_LOGOS_BUCKET",
+        "prefix": "category-logos",
+        "allowed_content_types": ["image/jpeg", "image/png", "image/webp"],
+        "max_size": 3 * 1024 * 1024,
+    },
 }
 
 PRESIGN_TTL = int(os.environ.get("PRESIGN_TTL_SECONDS", "900"))
